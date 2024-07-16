@@ -6,6 +6,10 @@ from math import cos, sin
 
 physical_groups = {}
 
+options = {
+    "transfinite": 3
+}
+
 
 class Material:
     def __init__(self, _type: str, vel_p: float, vel_s: float, dens: float, q_p: float = 0, q_s: float = 0):
@@ -166,7 +170,7 @@ class Quad:
         if 'transfinite' in kwargs:
             transfinite = kwargs['transfinite']
         else:
-            transfinite = 4
+            transfinite = options['transfinite']
 
         if 'init_lines' in kwargs:
             init_lines = kwargs['init_lines']
@@ -224,9 +228,17 @@ class Quad:
 
 
 class QuadGroup:
-    def __init__(self, quads: list[Quad]):
+    def __init__(self, quads: List[Quad], id: int = None):
         self.quads = quads
-        self.id, self.surfaces = self.__init_group()
+        if id is not None:
+            self.id = id
+            self.surfaces = []
+        else:
+            self.id, self.surfaces = self.__init_group()
+
+    @staticmethod
+    def from_gmsh(data: Tuple[int, int]):
+        return QuadGroup([], data[1])
 
     def gmsh_surfaces(self):
         return [(2, i) for i in self.surfaces]
@@ -242,7 +254,7 @@ class QuadGroup:
         return geo.add_surface_loop(surfaces), surfaces
 
     def __str__(self):
-        return "QuadGroup(\n\t{}\n)".format(',\n\t'.join(['\n\t'.join(str(quad).split('\n')) for quad in self.quads]))
+        return "QuadGroup({})".format(self.id)
 
     def __repr__(self):
         return str(self)
@@ -251,14 +263,33 @@ class QuadGroup:
         if elements is None:
             elements = [1]
         to_extrude = [(2, s) for s in self.surfaces]
-        return Volume(geo.extrude(to_extrude, 0, 0, dz, elements, recombine=True))
+        return Volume(geo.extrude(to_extrude, 0, 0, dz, elements, recombine=True), self, 'z-' if dz < 0 else 'z+')
 
 
 class Volume:
-    def __init__(self, extrusion):
+    def __init__(self, extrusion: List[Tuple[int, int]], extruded_quad_group: QuadGroup = None, direction: str = None):
         self.extrusion = extrusion
+        self.extruded_quad_group = extruded_quad_group
+        self.direction = direction
+        self.faces = self.__get_faces_from_extrusion()
         self.ids = [extrusion[i][1] for i in range(1, len(extrusion), 5 + 1)]
         self.extruded_surfaces_count = self.__get_extruded_surfaces_count()
+
+    def __get_faces_from_extrusion(self):
+        if self.extruded_quad_group is None:
+            return []
+
+        faces = []
+        for quad in self.extruded_quad_group.quads:
+            if self.direction[0] == 'z':
+                extrusion_faces = {
+                    'x+': QuadGroup.from_gmsh(self.extrusion[3]),
+                    'x-': QuadGroup.from_gmsh(self.extrusion[5]),
+                    'y+': QuadGroup.from_gmsh(self.extrusion[4]),
+                    'y-': QuadGroup.from_gmsh(self.extrusion[2]),
+                    'z+': QuadGroup.from_gmsh(self.extrusion[0]) if self.direction[1] == '+' else QuadGroup.from_gmsh((2, quad.id)),
+                    'z-': QuadGroup.from_gmsh((2, quad.id)) if self.direction[1] == '+' else QuadGroup.from_gmsh(self.extrusion[0])
+                }
 
     def __str__(self):
         return f"Volume({self.ids})"
@@ -300,7 +331,6 @@ class VolumeGroup:
                 name: str,
                 material: Material,
                 pml: PML):
-        print(f'Setting PML {pml}')
         self.group, self.pml = collection.add_pml(
             PhysicalGroup(
                 self.volumes,

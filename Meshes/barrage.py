@@ -1,6 +1,6 @@
-from math import tan, atan, degrees, cos, sin
-
-import mesher as m
+from math import tan, atan
+import gmesher as m
+import mesh_transformer as mt
 
 geo = m.geo
 model = m.model
@@ -14,31 +14,34 @@ model = m.model
 #  |    --------    |
 #  |----------------|
 
+m.options['transfinite'] = 10
+
 # ==========
 # Constantes
 # ==========
-dam_size_top = 260.0
+dam_size_top = 320.0
 dam_size_bottom = 100.0
 dam_height = 90
 dam_thickness = 5.0
 wall_height = 100.0
-wall_thickness = 10.0
+wall_thickness = 100.0
 ground_height = 10.0
 water_height = 80.0
 water_length = 1000.0
 air_length = 1000.0
 side_extension = 1000.0
 
-pml_thickness = 500.0
+pml_thickness = 1000.0
 
-before_dam_elements = [1, 2, 4, 4]
+before_dam_elements = [1, 2, 4]
 # before_dam_elements = [1]
-around_dam_elements = [4]
+around_dam_elements = [1]
 # around_dam_elements = [1]
-after_dam_elements = [4, 4, 2, 1]
+after_dam_elements = [4, 2, 1]
 # after_dam_elements = [1]
-extension_elements = [2, 1, 1]
+extension_elements = [3, 2, 1, 1]
 # extension_elements = [1]
+pml_elements = [2]
 
 # ==========
 # Assertions
@@ -58,15 +61,20 @@ incline_rad = atan((dam_size_top - dam_size_bottom) / 2 / wall_height)
 wall_thickness_top = wall_thickness
 wall_thickness_bottom = wall_thickness + tan(incline_rad) * wall_height
 
-x_zero = -(wall_thickness_bottom + dam_size_bottom / 2)
-y_zero = -ground_height
+x_zero = 0
+y_zero = 0
+z_zero = 0
+
+x_upper = side_extension * 2 + dam_size_bottom + wall_thickness_bottom * 2
+y_upper = 0
+z_upper = water_length + dam_thickness + air_length
 
 # ==========
 # Points
 # ==========
 
 # Ground points
-pg1 = m.Point(x_zero, y_zero)
+pg1 = m.Point(x_zero, y_zero, z_zero)
 pg2 = pg1.offset_x(wall_thickness_bottom)
 pg3 = pg2.offset_y(ground_height)
 pg4 = pg3.offset_x(-wall_thickness_bottom)
@@ -233,8 +241,6 @@ pml_ym = m.Volume(
     ),
 )
 
-print(pml_ym.extrusion)
-
 pml_xpym = m.Volume(
     geo.extrude(
         [
@@ -399,32 +405,138 @@ pml_xmzm = m.Volume(
     )
 )
 
+collection = m.PhysicalGroupCollection()
+
+material_ground = m.Material('S', 6400, 3200, 2700)
+material_water = m.Material('F', 1200, 0, 1000)
+material_dam = m.Material('S', 6400, 3200, 2700)
+
 pml = {
-    'x-y-z-': pml_xmymzm,
-    'x-y-': pml_xmym,
-    'x-z-': pml_xmzm,
-    'x-': pml_xm,
+    'x-y-z-': (pml_xmymzm, material_ground, m.PML(
+        (0, -pml_thickness),
+        (0, -pml_thickness),
+        (0, -pml_thickness),
+        0,
+    )),
 
-    'x+': pml_xp,
-    'z+': pml_zp,
-    'z-': pml_zm,
+    'x-y-': (pml_xmym, material_ground, m.PML(
+        (0, -pml_thickness),
+        (0, -pml_thickness),
+        (0, 0),
+        0,
+    )),
 
-    'y-': pml_ym,
+    'x-z-': (pml_xmzm, material_ground, m.PML(
+        (0, -pml_thickness),
+        (0, 0),
+        (0, -pml_thickness),
+        0,
+    )),
 
-    'x+y-': pml_xpym,
+    'x-': (pml_xm, material_ground, m.PML(
+        (0, -pml_thickness),
+        (0, 0),
+        (0, 0),
+        0,
+    )),
 
-    'y-z-': pml_ymzm,
-    'y-z+': pml_ymzp,
+    'x+': (pml_xp, material_ground, m.PML(
+        (x_upper, pml_thickness),
+        (0, 0),
+        (0, 0),
+        0,
+    )),
 
-    'x-z+': pml_xmzp,
-    'x+z-': pml_xpzm,
-    'x+z+': pml_xpzp,
+    'z+': (pml_zp, material_ground, m.PML(
+        (0, 0),
+        (0, 0),
+        (z_upper, pml_thickness),
+        0,
+    )),
 
-    'x-y-z+': pml_xmymzp,
-    'x+y-z+': pml_xpymzp,
-    'x+y-z-': pml_xpymzm,
+    'z-': (pml_zm, material_ground, m.PML(
+        (0, 0),
+        (0, 0),
+        (0, -pml_thickness),
+        0,
+    )),
 
-    'water': pml_water
+    'y-': (pml_ym, material_ground, m.PML(
+        (0, 0),
+        (0, -pml_thickness),
+        (0, 0),
+        0,
+    )),
+
+    'x+y-': (pml_xpym, material_ground, m.PML(
+        (x_upper, pml_thickness),
+        (0, -pml_thickness),
+        (0, 0),
+        0,
+    )),
+
+    'y-z-': (pml_ymzm, material_ground, m.PML(
+        (0, 0),
+        (0, -pml_thickness),
+        (0, -pml_thickness),
+        0,
+    )),
+
+    'y-z+': (pml_ymzp, material_ground, m.PML(
+        (0, 0),
+        (0, -pml_thickness),
+        (z_upper, pml_thickness),
+        0,
+    )),
+
+    'x-z+': (pml_xmzp, material_ground, m.PML(
+        (0, -pml_thickness),
+        (0, 0),
+        (z_upper, pml_thickness),
+        0,
+    )),
+
+    'x+z-': (pml_xpzm, material_ground, m.PML(
+        (x_upper, pml_thickness),
+        (0, 0),
+        (0, -pml_thickness),
+        0,
+    )),
+
+    'x+z+': (pml_xpzp, material_ground, m.PML(
+        (x_upper, pml_thickness),
+        (0, 0),
+        (z_upper, pml_thickness),
+        0,
+    )),
+
+    'x-y-z+': (pml_xmymzp, material_ground, m.PML(
+        (0, -pml_thickness),
+        (0, -pml_thickness),
+        (z_upper, pml_thickness),
+        0,
+    )),
+
+    'x+y-z+': (pml_xpymzp, material_ground, m.PML(
+        (x_upper, pml_thickness),
+        (0, -pml_thickness),
+        (z_upper, pml_thickness),
+        0,
+    )),
+
+    'x+y-z-': (pml_xpymzm, material_ground, m.PML(
+        (x_upper, pml_thickness),
+        (0, -pml_thickness),
+        (0, -pml_thickness),
+        0,
+    )),
+
+    'water': (pml_water, material_water, m.PML(
+        (0, 0),
+        (0, 0),
+        (0, -pml_thickness),
+        2,
+    )),
 }
 
 m.VolumeGroup([
@@ -433,26 +545,75 @@ m.VolumeGroup([
     ground_after_dam_volume,
     ground_extension_left_volume,
     ground_extension_right_volume,
-]).set_phy_group('Ground')
+]).set_phy_group(collection,
+                 'Ground',
+                 material_ground)
 
 m.VolumeGroup([
     dam_top_volume,
     dam_bottom_volume,
-]).set_phy_group('Dam')
+]).set_phy_group(collection,
+                 'Dam',
+                 material_dam)
 
 m.VolumeGroup([
     water_volume
-]).set_phy_group('Water')
+]).set_phy_group(collection,
+                 'Water',
+                 material_water)
 
 # Create PMLs
-for direction, volume in pml.items():
-    m.VolumeGroup([volume]).set_phy_group(f'PML_{direction}')
+for direction, (volume, material, pml) in pml.items():
+    m.VolumeGroup([volume]).set_pml(
+        collection,
+        f'PML_{direction}',
+        material,
+        pml,
+    )
 
+collection.write_material_input('material.input')
+
+m.gmsh.option.setNumber("General.Verbosity", 0)
 geo.synchronize()
 
 m.gmsh.model.mesh.generate(3)
 
+m.gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
 m.gmsh.write("output.msh")
+
+threshold = 20
+bounding_box = mt.BoundingBox(wall_thickness_top, wall_thickness_top + dam_size_top,
+                              ground_height, ground_height + dam_height,
+                              water_length, water_length + dam_thickness,
+                              threshold)
+
+bounding_box.render(m, offset=threshold)
+
+geo.synchronize()
+
+
+def transform(x: float, y: float, z: float):
+    dx, dy, dz = 0, 0, 0
+    x0, y0, z0 = x - bounding_box.min_x, y - bounding_box.min_y, z - bounding_box.min_z
+    qx = mt.BoundingBox.get_dampening_coefficient(x, bounding_box.min_x, bounding_box.max_x)
+
+    dz += (bounding_box.max_y - y0) ** 2.05 / 220
+
+    dz += (x0 - 0.5 * (bounding_box.max_x - bounding_box.min_x)) ** 2 / 500 - 50
+
+    dz *= qx
+
+    return x + dx, y + dy, z + dz
+
+
+mt.transform_mesh_file("output.msh", [
+    mt.Transformer(
+        bounding_box,
+        transform,
+    )
+], "output_transformed.msh")
+
+m.gmsh.open("output_transformed.msh")
 
 m.gmsh.fltk.run()
 

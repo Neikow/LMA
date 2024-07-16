@@ -1,9 +1,22 @@
+import os
+import sys
 from typing import List, Tuple
+import h5py
+import numpy as np
 
 # copernicus account
 account = 'b401'
 # user email
 email = 'vitaly.lysen@gmail.com'
+# mt_import_gmsh path
+mt_import_gmsh_path = 'C:\\Users\\Vitaly\\OneDrive\\Bureau\\LMA\\scripts\\pysem\\mt_import_gmsh'
+# h5 file name
+h5_file = 'output.h5'
+
+# remote server
+remote_server = 'copernicus'
+# remote server path
+remote_server_path = '/scratch/vlysen/sims'
 
 
 def format_timeout_str(timeout: int) -> str:
@@ -15,7 +28,7 @@ def format_timeout_str(timeout: int) -> str:
     return f'{timeout // 60}:{str(timeout % 60).ljust(2, "0")}:00'
 
 
-def get_mesh_input(procs_count: int, msh_file: int) -> str:
+def get_mesh_input(procs_count: int, msh_file: str) -> str:
     """
     Get the contents of the mesh.input file
     :param procs_count: number of processors for the job
@@ -205,12 +218,76 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description='Create all the files required for a simulation from a msh file.')
 
-    parser.add_argument('source_msh', type=str, help='The msh file used for the simulation')
-    parser.add_argument('simulation_name', type=str, help='Name of the simulation project')
-    parser.add_argument('-n', dest='proc_count', type=int, help='Number of processors for the job (default=4)', default=4)
-    parser.add_argument('-t', dest='sim_timeout', type=int, help='Timeout of the simulation (in min) (default=60)', default=60)
+    parser.add_argument('simulation_name',
+                        type=str,
+                        help='Name of the simulation project')
+    parser.add_argument('source_msh_path',
+                        type=str,
+                        help='The msh file used for the simulation')
+    parser.add_argument('-n',
+                        dest='proc_count',
+                        type=int,
+                        help='Number of processors for the job (default=4)',
+                        default=4)
+    parser.add_argument('-T',
+                        dest='sim_time',
+                        type=int,
+                        help='Simulation duration (in s) (default=1)',
+                        default=1
+                        )
+    parser.add_argument('-t',
+                        dest='sim_timeout',
+                        type=int,
+                        help='Timeout of the simulation (in min) (default=60)',
+                        default=60)
+    parser.add_argument('-m',
+                        dest='material_file_name',
+                        help='The material file for the simulation in the same directory as the .msh file',
+                        default='material.input')
+    parser.add_argument('-o',
+                        dest='output_dir',
+                        help='Output directory for the simulation files',
+                        default='.')
+
+    parser.add_argument('-c',
+                        dest='remote_copy',
+                        action='store_true',
+                        help='Copy the simulation files to the remote server using `scp`')
 
     args = parser.parse_args()
+
+    sim_dir = os.path.join(args.output_dir, args.simulation_name)
+
+    material_file_path = os.path.join(os.path.dirname(args.source_msh_path), args.material_file_name)
+
+    try:
+        os.mkdir(sim_dir)
+    except FileExistsError:
+        pass
+
+    os.system(f'python {mt_import_gmsh_path} {args.source_msh_path} {os.path.join(sim_dir, h5_file)}')
+
+    with open(os.path.join(sim_dir, 'mesh.input'), 'w') as f:
+        f.write(get_mesh_input(args.proc_count, h5_file))
+
+    with open(os.path.join(sim_dir, 'stations.txt'), 'w') as f:
+        f.write(get_stations_txt([(0, 0, 0)]))
+
+    with open(os.path.join(sim_dir, 'input.spec'), 'w') as f:
+        f.write(get_input_spec(args.simulation_name, args.sim_time, args.material_file_name, (0, 0, 0)))
+
+    with open(os.path.join(sim_dir, 'prepro.sh'), 'w') as f:
+        f.write(get_prepro_sh(args.simulation_name, args.sim_timeout))
+
+    with open(os.path.join(sim_dir, 'run.sh'), 'w') as f:
+        f.write(get_run_sh(args.simulation_name, args.proc_count, args.sim_timeout))
+
+    with open(material_file_path, 'r') as f:
+        with open(os.path.join(sim_dir, args.material_file_name), 'w') as f2:
+            f2.write(f.read())
+
+    if args.remote_copy:
+        os.system(f'scp -r {sim_dir} {remote_server}:{remote_server_path}/{args.simulation_name}')
 
 
 if __name__ == '__main__':
