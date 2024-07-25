@@ -6,13 +6,19 @@ from math import cos, sin
 
 physical_groups = {}
 
-options = {
-    "transfinite": 3
-}
+options = {"transfinite": 3}
 
 
 class Material:
-    def __init__(self, _type: str, vel_p: float, vel_s: float, dens: float, q_p: float = 0, q_s: float = 0):
+    def __init__(
+        self,
+        _type: str,
+        vel_p: float,
+        vel_s: float,
+        dens: float,
+        q_p: float = 0,
+        q_s: float = 0,
+    ):
         self.type = _type
         self.vel_p = vel_p
         self.vel_s = vel_s
@@ -21,20 +27,24 @@ class Material:
         self.q_s = q_s
 
     def copy_as_pml(self):
-        if self.type == 'S':
-            new_type = 'P'
-        elif self.type == 'F':
-            new_type = 'L'
+        if self.type == "S":
+            new_type = "P"
+        elif self.type == "F":
+            new_type = "L"
         else:
             new_type = self.type
 
         return Material(new_type, self.vel_p, self.vel_s, self.dens, self.q_p, self.q_s)
 
 
-
-
 class PhysicalGroup:
-    def __init__(self, volumes: List['Volume'], name: str, material: Material, is_pml: bool = False):
+    def __init__(
+        self,
+        volumes: List["Volume"],
+        name: str,
+        material: Material,
+        is_pml: bool = False,
+    ):
         self.volumes = volumes
         self.name = name
         self.material = material.copy_as_pml() if is_pml else material
@@ -50,15 +60,19 @@ class PhysicalGroup:
 
     def format(self):
         m = self.material
-        return f'{m.type} {m.vel_p:.8f} {m.vel_s:.8f} {m.dens:.8f} {m.q_p:.8f} {m.q_s:.8f}'
+        return (
+            f"{m.type} {m.vel_p:.8f} {m.vel_s:.8f} {m.dens:.8f} {m.q_p:.8f} {m.q_s:.8f}"
+        )
 
 
 class PML:
-    def __init__(self,
-                 x: Tuple[float, float],
-                 y: Tuple[float, float],
-                 z: Tuple[float, float],
-                 neighbor_material_offset: int):
+    def __init__(
+        self,
+        x: Tuple[float, float],
+        y: Tuple[float, float],
+        z: Tuple[float, float],
+        neighbor_material_offset: int,
+    ):
         self.pos_x = x[0]
         self.w_x = x[1]
         self.pos_y = y[0]
@@ -68,17 +82,27 @@ class PML:
         self.neighbor_material_offset = neighbor_material_offset
 
     def format(self, n_pow: int, a_pow: float):
-        return ' '.join([f'{e:.8f}' for e in [n_pow,
-                                              a_pow,
-                                              self.pos_x,
-                                              self.w_x,
-                                              self.pos_y,
-                                              self.w_y,
-                                              self.pos_z,
-                                              self.w_z]]) + f' {self.neighbor_material_offset}'
+        return (
+            " ".join(
+                [
+                    f"{e:.8f}"
+                    for e in [
+                        n_pow,
+                        a_pow,
+                        self.pos_x,
+                        self.w_x,
+                        self.pos_y,
+                        self.w_y,
+                        self.pos_z,
+                        self.w_z,
+                    ]
+                ]
+            )
+            + f" {self.neighbor_material_offset}"
+        )
 
     def __repr__(self):
-        return f'PML({self.pos_x}, {self.w_x}, {self.pos_y}, {self.w_y}, {self.pos_z}, {self.w_z}, {self.neighbor_material_offset})'
+        return f"PML({self.pos_x}, {self.w_x}, {self.pos_y}, {self.w_y}, {self.pos_z}, {self.w_z}, {self.neighbor_material_offset})"
 
 
 class PhysicalGroupCollection:
@@ -89,36 +113,32 @@ class PhysicalGroupCollection:
         self.groups = {}
         self.pml = {}
 
-    def add(self,
-            group: PhysicalGroup):
+    def add(self, group: PhysicalGroup):
         if group.name not in self.groups:
             self.groups[group.name] = (len(self.groups), group)
             return group
         else:
-            assert False, 'Physical Group with name {} already exists'.format(group.name)
+            assert False, "Physical Group with name {} already exists".format(
+                group.name
+            )
 
-    def add_pml(self,
-                group: PhysicalGroup,
-                pml: PML):
+    def add_pml(self, group: PhysicalGroup, pml: PML):
         g = self.add(group)
         self.pml[group.name] = pml
 
         return g, pml
 
-    def write_material_input(self,
-                             path: str,
-                             n_pow: int = 2,
-                             a_pow: float = 10.):
-        with open(path, 'w+') as f:
-            f.write(f'{len(self.groups)}\n')
+    def write_material_input(self, path: str, n_pow: int = 2, a_pow: float = 10.0):
+        with open(path, "w+") as f:
+            f.write(f"{len(self.groups)}\n")
 
             for m in self.groups.values():
-                f.write(f'{m[1].format()}\n')
+                f.write(f"{m[1].format()}\n")
 
-            f.write('\n\n')
+            f.write("#\n#\n")
 
             for m in self.pml.values():
-                f.write(f'{m.format(n_pow, a_pow)}\n')
+                f.write(f"{m.format(n_pow, a_pow)}\n")
 
 
 class Point:
@@ -159,7 +179,9 @@ class Point:
         return Point(self.x, self.y, self.z + offset)
 
     def offset_angle_in_xy(self, angle: float, distance: float):
-        return Point(self.x + distance * cos(angle), self.y + distance * sin(angle), self.z)
+        return Point(
+            self.x + distance * cos(angle), self.y + distance * sin(angle), self.z
+        )
 
     def __init_point(self):
         return geo.add_point(self.x, self.y, self.z)
@@ -167,13 +189,13 @@ class Point:
 
 class Quad:
     def __init__(self, p1: Point, p2: Point, p3: Point, p4: Point, **kwargs):
-        if 'transfinite' in kwargs:
-            transfinite = kwargs['transfinite']
+        if "transfinite" in kwargs:
+            transfinite = kwargs["transfinite"]
         else:
-            transfinite = options['transfinite']
+            transfinite = options["transfinite"]
 
-        if 'init_lines' in kwargs:
-            init_lines = kwargs['init_lines']
+        if "init_lines" in kwargs:
+            init_lines = kwargs["init_lines"]
         else:
             init_lines = True
 
@@ -183,7 +205,7 @@ class Quad:
         self.p4 = p4
 
         if not init_lines:
-            assert False, 'not implemented'
+            assert False, "not implemented"
         else:
             self.id, self.lines = self.__init_shape(transfinite)
 
@@ -199,10 +221,12 @@ class Quad:
     def __init_shape(self, transfinite: int) -> (int, [int, int, int, int]):
         points = [self.p1.id, self.p2.id, self.p3.id, self.p4.id]
 
-        lines = [geo.add_line(points[0], points[1]),
-                 geo.add_line(points[1], points[2]),
-                 geo.add_line(points[2], points[3]),
-                 geo.add_line(points[3], points[0])]
+        lines = [
+            geo.add_line(points[0], points[1]),
+            geo.add_line(points[1], points[2]),
+            geo.add_line(points[2], points[3]),
+            geo.add_line(points[3], points[0]),
+        ]
 
         for i in lines:
             geo.mesh.set_transfinite_curve(i, transfinite)
@@ -213,8 +237,8 @@ class Quad:
 
     @staticmethod
     def from_ids(points: [int, int, int, int], **kwargs):
-        if 'init_lines' in kwargs:
-            init_lines = kwargs['init_lines']
+        if "init_lines" in kwargs:
+            init_lines = kwargs["init_lines"]
         else:
             init_lines = True
 
@@ -223,7 +247,7 @@ class Quad:
             Point.from_id(points[1]),
             Point.from_id(points[2]),
             Point.from_id(points[3]),
-            init_lines=init_lines
+            init_lines=init_lines,
         )
 
 
@@ -263,11 +287,20 @@ class QuadGroup:
         if elements is None:
             elements = [1]
         to_extrude = [(2, s) for s in self.surfaces]
-        return Volume(geo.extrude(to_extrude, 0, 0, dz, elements, recombine=True), self, 'z-' if dz < 0 else 'z+')
+        return Volume(
+            geo.extrude(to_extrude, 0, 0, dz, elements, recombine=True),
+            self,
+            "z-" if dz < 0 else "z+",
+        )
 
 
 class Volume:
-    def __init__(self, extrusion: List[Tuple[int, int]], extruded_quad_group: QuadGroup = None, direction: str = None):
+    def __init__(
+        self,
+        extrusion: List[Tuple[int, int]],
+        extruded_quad_group: QuadGroup = None,
+        direction: str = None,
+    ):
         self.extrusion = extrusion
         self.extruded_quad_group = extruded_quad_group
         self.direction = direction
@@ -281,14 +314,22 @@ class Volume:
 
         faces = []
         for quad in self.extruded_quad_group.quads:
-            if self.direction[0] == 'z':
+            if self.direction[0] == "z":
                 extrusion_faces = {
-                    'x+': QuadGroup.from_gmsh(self.extrusion[3]),
-                    'x-': QuadGroup.from_gmsh(self.extrusion[5]),
-                    'y+': QuadGroup.from_gmsh(self.extrusion[4]),
-                    'y-': QuadGroup.from_gmsh(self.extrusion[2]),
-                    'z+': QuadGroup.from_gmsh(self.extrusion[0]) if self.direction[1] == '+' else QuadGroup.from_gmsh((2, quad.id)),
-                    'z-': QuadGroup.from_gmsh((2, quad.id)) if self.direction[1] == '+' else QuadGroup.from_gmsh(self.extrusion[0])
+                    "x+": QuadGroup.from_gmsh(self.extrusion[3]),
+                    "x-": QuadGroup.from_gmsh(self.extrusion[5]),
+                    "y+": QuadGroup.from_gmsh(self.extrusion[4]),
+                    "y-": QuadGroup.from_gmsh(self.extrusion[2]),
+                    "z+": (
+                        QuadGroup.from_gmsh(self.extrusion[0])
+                        if self.direction[1] == "+"
+                        else QuadGroup.from_gmsh((2, quad.id))
+                    ),
+                    "z-": (
+                        QuadGroup.from_gmsh((2, quad.id))
+                        if self.direction[1] == "+"
+                        else QuadGroup.from_gmsh(self.extrusion[0])
+                    ),
                 }
 
     def __str__(self):
@@ -303,9 +344,7 @@ class Volume:
         return s
 
     def get_surfaces_in_extrusion_direction(self):
-        return [
-            self.extrusion[x] for x in range(0, len(self.extrusion), 5 + 1)
-        ]
+        return [self.extrusion[x] for x in range(0, len(self.extrusion), 5 + 1)]
 
 
 class VolumeGroup:
@@ -315,29 +354,28 @@ class VolumeGroup:
     def __init__(self, volumes: list[Volume]):
         self.volumes = volumes
 
-    def set_phy_group(self,
-                      collection: PhysicalGroupCollection,
-                      name: str,
-                      material: Material) -> PhysicalGroup:
-        self.group = collection.add(PhysicalGroup(
-            self.volumes,
-            name,
-            material,
-        ))
-        return self.group
-
-    def set_pml(self,
-                collection: PhysicalGroupCollection,
-                name: str,
-                material: Material,
-                pml: PML):
-        self.group, self.pml = collection.add_pml(
+    def set_phy_group(
+        self, collection: PhysicalGroupCollection, name: str, material: Material
+    ) -> PhysicalGroup:
+        self.group = collection.add(
             PhysicalGroup(
                 self.volumes,
                 name,
                 material,
-                True),
-            pml)
+            )
+        )
+        return self.group
+
+    def set_pml(
+        self,
+        collection: PhysicalGroupCollection,
+        name: str,
+        material: Material,
+        pml: PML,
+    ):
+        self.group, self.pml = collection.add_pml(
+            PhysicalGroup(self.volumes, name, material, True), pml
+        )
 
 
 gmsh.initialize(sys.argv)
