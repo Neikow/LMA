@@ -1,22 +1,23 @@
 import os
-import sys
 from typing import List, Tuple
-import h5py
-import numpy as np
+
+from seismic_data import create_seismic_data
 
 # copernicus account
-account = 'b401'
+account = "b401"
 # user email
-email = 'vitaly.lysen@gmail.com'
+email = "vitaly.lysen@gmail.com"
 # mt_import_gmsh path
-mt_import_gmsh_path = 'C:\\Users\\Vitaly\\OneDrive\\Bureau\\LMA\\scripts\\pysem\\mt_import_gmsh'
+mt_import_gmsh_path = (
+    "C:\\Users\\Vitaly\\OneDrive\\Bureau\\LMA\\scripts\\pysem\\mt_import_gmsh"
+)
 # h5 file name
-h5_file = 'output.h5'
+h5_file = "output.h5"
 
 # remote server
-remote_server = 'copernicus'
+remote_server = "copernicus"
 # remote server path
-remote_server_path = '/scratch/vlysen/sims'
+remote_server_path = "/scratch/vlysen/sims"
 
 
 def format_timeout_str(timeout: int) -> str:
@@ -35,11 +36,11 @@ def get_mesh_input(procs_count: int, msh_file: str) -> str:
     :param msh_file: name of the mesh file
     :return: contents of the mesh.input file
     """
-    return f'''{procs_count}
+    return f"""{procs_count}
 4
 1
 {msh_file}
-'''
+"""
 
 
 def get_stations_txt(pts: List[Tuple[float, float, float]]):
@@ -48,35 +49,11 @@ def get_stations_txt(pts: List[Tuple[float, float, float]]):
     :param pts: a list of points
     :return: contents of the stations.txt file
     """
-    return '\n'.join([f'{x:.2f} {y:.2f} {z:.2f}' for x, y, z in pts])
+    return "\n".join([f"{x:.2f} {y:.2f} {z:.2f}" for x, y, z in pts])
 
 
-def get_input_spec(job_name: str, sim_time: float, mat_file: str, source: Tuple[float, float, float]) -> str:
-    return f'''# -*- mode: perl -*-
-run_name = {job_name};
-
-# duration of the run
-sim_time = {sim_time:.4f};
-mesh_file = "mesh4spec"; # input mesh file
-mat_file = "{mat_file}";
-dim=3;
-mpml_atn_param = 0.002;
-
-snapshots {{
-    save_snap = true;
-}};
-
-# Description des capteurs
-save_traces = true;
-traces_format=hdf5;
-
-# Fichier protection reprise
-prorep=false;
-prorep_iter=1000;
-restart_iter=298000;
-
-# introduce a source
-source {{
+def get_sources_from_ricker(source: Tuple[float, float, float]):
+    return f"""source {{
     # coordinates of the sources ((x,y,z) or (lat,long,R) if rotundity is considered)
     coords = {' '.join([f'{x:.2f}' for x in source])};
     # the numbers before the labels are here to help convert from previous input.spec format
@@ -88,15 +65,80 @@ source {{
     func = ricker;
     tau = 0.4;
     freq = 3.;   # source main frequency / cutoff frequency
-}}
+}};"""
+
+
+def get_sources_from_seismic_data(
+    files: List[str],
+    sources: List[Tuple[float, float, float]],
+    direction: List[Tuple[float, float, float]],
+):
+    def get_source(
+        file: str,
+        source_point: Tuple[float, float, float],
+        _direction: Tuple[float, float, float],
+    ):
+        return f"""source {{
+    coords = {' '.join([f'{x:.2f}' for x in source_point])};
+    type = impulse;
+    dir = {' '.join([f'{x:.2f}' for x in _direction])};
+    func = file;
+    time_file = "{file}";
+}};"""
+
+    return "\n\n".join(
+        [
+            get_source(file, source, _dir)
+            for file, source, _dir in zip(files, sources, direction)
+        ]
+    )
+
+
+def get_input_spec(
+    job_name: str,
+    sim_time: float,
+    mat_file: str,
+    source: Tuple[float, float, float],
+    use_ricker: bool = False,
+) -> str:
+    return f"""# -*- mode: perl -*-
+run_name = "{job_name}";
+
+# duration of the run
+sim_time = {sim_time:.4f};
+mesh_file = "mesh4spec"; # input mesh file
+mat_file = "{mat_file}";
+dim=3;
+mpml_atn_param = 0.002;
+
+snapshots {{
+    save_snap = true;
+    snap_interval = 0.05;
+}};
+
+# Description des capteurs
+save_traces = true;
+traces_format=hdf5;
+
+# Fichier protection reprise
+prorep=false;
+prorep_iter=1000;
+restart_iter=298000;
+
+# sources
+{get_sources_from_ricker(source) if use_ricker else get_sources_from_seismic_data(
+    ["usds_th.csv", "ud_th.csv", "cross_str.csv"],
+    [(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+    [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
+)}
 
 time_scheme {{
     accel_scheme = false;  # Acceleration scheme for Newmark
     veloc_scheme = true;   # Velocity scheme for Newmark
     alpha = 0.5;           # alpha (Newmark parameter)
-    beta = 0.5;           # beta (Newmark parameter)
+    beta = 0.5;            # beta (Newmark parameter)
     gamma = 1;             # gamma (Newmark parameter)
-    courant = 0.2;
+    courant = 0.5;
 }};
 
 ngll=5;
@@ -104,8 +146,8 @@ ngll=5;
 capteurs "UU" {{
     type = points;
     file = "stations.txt";
-    period = 40;
-}}
+    period = 100;
+}};
 
 out_variables {{
     enP = 0;   # P-wave energy (scalar field)
@@ -117,8 +159,8 @@ out_variables {{
     acc  = 1;   # acceleration (vector field)
     edev = 0;  # deviatoric strain (tensor field)
     sdev  = 0;  # deviatoric stress (tensor field)
-}}
-'''
+}};
+"""
 
 
 def get_prepro_sh(job_name: str, timeout: int):
@@ -128,7 +170,7 @@ def get_prepro_sh(job_name: str, timeout: int):
     :param timeout: timeout in minutes
     :return: contents of the prepro.sh file
     """
-    return f'''#!/bin/sh
+    return f"""#!/bin/sh
 #SBATCH -J {job_name}_SEMMesh
 #SBATCH -p skylake # partition utilisee
 #SBATCH -n 1 # nombre de proc
@@ -170,11 +212,11 @@ mkdir sem
 srun /home/${{SLURM_JOB_USER}}/SEM/buildSEM/MESH/mesher < mesh.input > outputmesh.log
 
 mv mesh4spec* sem/
-'''
+"""
 
 
 def get_run_sh(job_name: str, procs_count: int, timeout: int):
-    return f'''#!/bin/sh
+    return f"""#!/bin/sh
 #SBATCH -J {job_name}_SEMRun
 #SBATCH -p skylake
 #SBATCH -n {procs_count}
@@ -211,84 +253,124 @@ set -x
 cd ${{SLURM_SUBMIT_DIR}}
 
 # execution with 'ntasks' MPI processes
-srun -n $SLURM_NTASKS /home/${{SLURM_JOB_USER}}/SEM/buildSEM/SEM3D/sem3d.exe > output.log'''
+srun -n $SLURM_NTASKS /home/${{SLURM_JOB_USER}}/SEM/buildSEM/SEM3D/sem3d.exe > output.log"""
 
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description='Create all the files required for a simulation from a msh file.')
 
-    parser.add_argument('simulation_name',
-                        type=str,
-                        help='Name of the simulation project')
-    parser.add_argument('source_msh_path',
-                        type=str,
-                        help='The msh file used for the simulation')
-    parser.add_argument('-n',
-                        dest='proc_count',
-                        type=int,
-                        help='Number of processors for the job (default=4)',
-                        default=4)
-    parser.add_argument('-T',
-                        dest='sim_time',
-                        type=int,
-                        help='Simulation duration (in s) (default=1)',
-                        default=1
-                        )
-    parser.add_argument('-t',
-                        dest='sim_timeout',
-                        type=int,
-                        help='Timeout of the simulation (in min) (default=60)',
-                        default=60)
-    parser.add_argument('-m',
-                        dest='material_file_name',
-                        help='The material file for the simulation in the same directory as the .msh file',
-                        default='material.input')
-    parser.add_argument('-o',
-                        dest='output_dir',
-                        help='Output directory for the simulation files',
-                        default='.')
+    parser = argparse.ArgumentParser(
+        description="Create all the files required for a simulation from a msh file."
+    )
 
-    parser.add_argument('-c',
-                        dest='remote_copy',
-                        action='store_true',
-                        help='Copy the simulation files to the remote server using `scp`')
+    parser.add_argument(
+        "simulation_name", type=str, help="Name of the simulation project"
+    )
+    parser.add_argument(
+        "source_msh_path", type=str, help="The msh file used for the simulation"
+    )
+    parser.add_argument(
+        "-n",
+        dest="proc_count",
+        type=int,
+        help="Number of processors for the job (default=4)",
+        default=4,
+    )
+    parser.add_argument(
+        "-T",
+        dest="sim_time",
+        type=int,
+        help="Simulation duration (in s) (default=1)",
+        default=1,
+    )
+    parser.add_argument(
+        "-t",
+        dest="sim_timeout",
+        type=int,
+        help="Timeout of the simulation (in min) (default=60)",
+        default=4 * 60,
+    )
+    parser.add_argument(
+        "-m",
+        dest="material_file_name",
+        help="The material file for the simulation in the same directory as the .msh file",
+        default="material.input",
+    )
+    parser.add_argument(
+        "-o",
+        dest="output_dir",
+        help="Output directory for the simulation files",
+        default="Simulations",
+    )
+
+    parser.add_argument(
+        "-c",
+        dest="remote_copy",
+        action="store_true",
+        help="Copy the simulation files to the remote server using `scp`",
+    )
+
+    parser.add_argument(
+        "-r",
+        dest="use_ricker",
+        action="store_true",
+        help="Use Ricker source instead of the provided seismic data",
+    )
 
     args = parser.parse_args()
 
     sim_dir = os.path.join(args.output_dir, args.simulation_name)
 
-    material_file_path = os.path.join(os.path.dirname(args.source_msh_path), args.material_file_name)
+    material_file_path = os.path.join(
+        os.path.dirname(args.source_msh_path), args.material_file_name
+    )
 
     try:
         os.mkdir(sim_dir)
     except FileExistsError:
         pass
 
-    os.system(f'python {mt_import_gmsh_path} {args.source_msh_path} {os.path.join(sim_dir, h5_file)}')
+    os.system(
+        f"python {mt_import_gmsh_path} {args.source_msh_path} {os.path.join(sim_dir, h5_file)}"
+    )
 
-    with open(os.path.join(sim_dir, 'mesh.input'), 'w') as f:
+    with open(os.path.join(sim_dir, "mesh.input"), "w", newline="\n") as f:
         f.write(get_mesh_input(args.proc_count, h5_file))
 
-    with open(os.path.join(sim_dir, 'stations.txt'), 'w') as f:
+    with open(os.path.join(sim_dir, "stations.txt"), "w", newline="\n") as f:
         f.write(get_stations_txt([(0, 0, 0)]))
 
-    with open(os.path.join(sim_dir, 'input.spec'), 'w') as f:
-        f.write(get_input_spec(args.simulation_name, args.sim_time, args.material_file_name, (0, 0, 0)))
+    with open(os.path.join(sim_dir, "input.spec"), "w", newline="\n") as f:
+        f.write(
+            get_input_spec(
+                args.simulation_name,
+                args.sim_time,
+                args.material_file_name,
+                (0, 0, 0),
+                args.use_ricker,
+            )
+        )
 
-    with open(os.path.join(sim_dir, 'prepro.sh'), 'w') as f:
+    with open(os.path.join(sim_dir, "prepro.sh"), "w", newline="\n") as f:
         f.write(get_prepro_sh(args.simulation_name, args.sim_timeout))
 
-    with open(os.path.join(sim_dir, 'run.sh'), 'w') as f:
+    with open(os.path.join(sim_dir, "run.sh"), "w", newline="\n") as f:
         f.write(get_run_sh(args.simulation_name, args.proc_count, args.sim_timeout))
 
-    with open(material_file_path, 'r') as f:
-        with open(os.path.join(sim_dir, args.material_file_name), 'w') as f2:
+    if not args.use_ricker:
+        create_seismic_data(sim_dir, args.sim_time, args.sim_time * 500)
+
+    with open(material_file_path, "r", newline="\n") as f:
+        with open(
+            os.path.join(sim_dir, args.material_file_name), "w", newline="\n"
+        ) as f2:
             f2.write(f.read())
 
     if args.remote_copy:
-        os.system(f'scp -r {sim_dir} {remote_server}:{remote_server_path}/{args.simulation_name}')
+        os.system(
+            f"scp -r {sim_dir}/. {remote_server}:{remote_server_path}/{args.simulation_name}"
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
