@@ -138,12 +138,33 @@ class MSHInstance:
 
         return output_path
 
-    def apply_transform(self, transformers: List[Transformer], output_path: str = None):
-        for transformer in transformers:
-            self.nodes = [node.apply_transform(transformer) for node in self.nodes]
-            self.elements = [
-                element.apply_transform(transformer) for element in self.elements
-            ]
+    def apply_transform(self, transformers: List[Transformer | None], output_path: str = None, progress_steps=10):
+        for i in range(len(transformers)):
+            if transformers[i] is None:
+                continue
+
+            print(f'\n# applying transformer {i + 1}')
+            print('# transforming nodes')
+            new_nodes = []
+            N = len(self.nodes)
+            print(f'{N} nodes')
+            steps = N // progress_steps
+            for j in range(N):
+                if j % steps == 0:
+                    print(f'{j / N * 100:.0f}%')
+                new_nodes.append(self.nodes[j].apply_transform(transformers[i]))
+
+            self.nodes = new_nodes
+
+            print('# transforming elements')
+            new_elements = []
+            E = len(self.elements)
+            print(f'{E} elements')
+            steps = E // progress_steps
+            for j in range(E):
+                if j % steps == 0:
+                    print(f'{j / E * 100:.0f}%')
+                new_elements.append(self.elements[j].apply_transform(transformers[i]))
 
         if output_path:
             self.save(output_path, True, True)

@@ -30,14 +30,17 @@ xm_faces = []
 for p in outer:
     dirs = p.get_faces_directions()
 
+    # if the point is on the x+ and x- side at the same time
+    # it is not an outer point this test helps to get rid of
+    # outer points that lay between the two faces
     if "x+" in dirs and "x-" in dirs:
         continue
+
     if "x+" in dirs:
         xp_faces.append(p)
-        # m.Point(p.x, p.y, p.z)
+
     elif "x-" in dirs:
         xm_faces.append(p)
-        # m.Point(p.x, p.y, p.z)
 
 xp_zy, xp_x = [], []
 xm_zy, xm_x = [], []
@@ -124,6 +127,7 @@ if __name__ == "__main__":
         for j in range(30):
             print(Y[i, j], Z[i, j], "|", Xp[i, j], Xm[i, j])
             m.Point(Y[i, j], Z[i, j], Xp[i, j])
+            m.Point(Y[i, j], Z[i, j], (Xp[i, j] + Xm[i, j]) / 2)
             m.Point(Y[i, j], Z[i, j], Xm[i, j])
 
     m.geo.synchronize()
