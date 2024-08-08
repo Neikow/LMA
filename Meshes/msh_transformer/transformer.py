@@ -226,8 +226,8 @@ class BoundingBox:
         return BoundingBox(min_x, max_x, min_y, max_y, min_z, max_z)
 
     @staticmethod
-    def get_dampening_coefficient(x: float, x_min: float, x_max: float):
-        return max(0.0, 1 - (2 * (1 / (x_max - x_min)) * (x - x_min) - 1) ** 10)
+    def get_dampening_coefficient(x: float, x_min: float, x_max: float, d=10.0):
+        return max(0.0, 1 - (2 * (1 / (x_max - x_min)) * (x - x_min) - 1) ** d)
 
     def __repr__(self):
         return f"BoundingBox(\n\t{self.min_x}-{self.max_x}\n\t{self.min_y}-{self.max_y}\n\t{self.min_z}-{self.max_z}\n)"

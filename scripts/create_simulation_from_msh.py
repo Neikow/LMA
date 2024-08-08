@@ -6,7 +6,7 @@ from seismic_data import create_seismic_data
 # copernicus account
 account = "b401"
 # user email
-email = "vitaly.lysen@gmail.com"
+email = "lysen@lma.cnrs-mrs.fr"
 # mt_import_gmsh path
 mt_import_gmsh_path = (
     "C:\\Users\\Vitaly\\OneDrive\\Bureau\\LMA\\scripts\\pysem\\mt_import_gmsh"
@@ -43,13 +43,14 @@ def get_mesh_input(procs_count: int, msh_file: str) -> str:
 """
 
 
-def get_stations_txt(pts: List[Tuple[float, float, float]]):
+def get_stations_txt(path: str):
     """
     Get the contents of the stations.txt file
     :param pts: a list of points
     :return: contents of the stations.txt file
     """
-    return "\n".join([f"{x:.2f} {y:.2f} {z:.2f}" for x, y, z in pts])
+    with open(path, 'r') as f:
+        return f.read()
 
 
 def get_sources_from_ricker(source: Tuple[float, float, float]):
@@ -94,11 +95,22 @@ def get_sources_from_seismic_data(
     )
 
 
+def get_selection(src_dir: str):
+    selection_path = os.path.join(src_dir, 'selection.txt')
+    if os.path.exists(selection_path):
+        with open(selection_path, 'r') as f:
+            selection = f.read()
+            return selection
+    else:
+        return ''
+
+
 def get_input_spec(
     job_name: str,
     sim_time: float,
     mat_file: str,
     source: Tuple[float, float, float],
+    src_dir: str,
     use_ricker: bool = False,
 ) -> str:
     return f"""# -*- mode: perl -*-
@@ -114,6 +126,8 @@ mpml_atn_param = 0.002;
 snapshots {{
     save_snap = true;
     snap_interval = 0.05;
+    
+    {get_selection(src_dir)}
 }};
 
 # Description des capteurs
@@ -128,7 +142,7 @@ restart_iter=298000;
 # sources
 {get_sources_from_ricker(source) if use_ricker else get_sources_from_seismic_data(
     ["usds_th.csv", "ud_th.csv", "cross_str.csv"],
-    [(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+    [(300, 300, 300), (300, 300, 300), (300, 300, 300)],
     [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
 )}
 
@@ -225,8 +239,9 @@ def get_run_sh(job_name: str, procs_count: int, timeout: int):
 #SBATCH -t {format_timeout_str(timeout)}
 #SBATCH -o ./%N.%x.out
 #SBATCH -e ./%N.%x.err
-# #SBATCH --mail-type=BEGIN,END
-# #SBATCH --mail-user={email}
+#SBATCH --mail-type=BEGIN,END
+#SBATCH --mail-user={email}
+{'#SBATCH --exclusive' if procs_count >= 32 else ''}
 
 # chargement des modules
 module purge
@@ -273,22 +288,22 @@ def main():
         "-n",
         dest="proc_count",
         type=int,
-        help="Number of processors for the job (default=4)",
-        default=4,
+        help="Number of processors for the job (default=32)",
+        default=32,
     )
     parser.add_argument(
         "-T",
         dest="sim_time",
         type=int,
-        help="Simulation duration (in s) (default=1)",
-        default=1,
+        help="Simulation duration (in s) (default=5)",
+        default=5,
     )
     parser.add_argument(
         "-t",
         dest="sim_timeout",
         type=int,
-        help="Timeout of the simulation (in min) (default=60)",
-        default=4 * 60,
+        help="Timeout of the simulation (in min) (default=48h)",
+        default=48 * 60,
     )
     parser.add_argument(
         "-m",
@@ -325,6 +340,10 @@ def main():
         os.path.dirname(args.source_msh_path), args.material_file_name
     )
 
+    stations_file_path = os.path.join(
+        os.path.dirname(args.source_msh_path), 'stations.txt'
+    )
+
     try:
         os.mkdir(sim_dir)
     except FileExistsError:
@@ -338,7 +357,7 @@ def main():
         f.write(get_mesh_input(args.proc_count, h5_file))
 
     with open(os.path.join(sim_dir, "stations.txt"), "w", newline="\n") as f:
-        f.write(get_stations_txt([(0, 0, 0)]))
+        f.write(get_stations_txt(stations_file_path))
 
     with open(os.path.join(sim_dir, "input.spec"), "w", newline="\n") as f:
         f.write(
@@ -346,7 +365,8 @@ def main():
                 args.simulation_name,
                 args.sim_time,
                 args.material_file_name,
-                (0, 0, 0),
+                (300, 300, 300),
+                os.path.dirname(args.source_msh_path),
                 args.use_ricker,
             )
         )
@@ -358,7 +378,7 @@ def main():
         f.write(get_run_sh(args.simulation_name, args.proc_count, args.sim_timeout))
 
     if not args.use_ricker:
-        create_seismic_data(sim_dir, args.sim_time, args.sim_time * 500)
+        create_seismic_data(sim_dir, args.sim_time, args.sim_time * 200)
 
     with open(material_file_path, "r", newline="\n") as f:
         with open(

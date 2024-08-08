@@ -27,28 +27,28 @@ from math import atan, tan
 #  Model sizes
 # =============
 dam_size_top = 300.0
-dam_size_bottom = 160.0
+dam_size_bottom = 120.0
 dam_height = 90.0
-dam_thickness = 5.0
+dam_thickness = 15.0
 
 wall_height = 100.0
 wall_thickness = 500.0
 
-ground_height = 12800.0
-# ground_height = 2500.0
+# ground_height = 12800.0
+ground_height = 2500.0
 
 water_height = 80.0
-water_length = 12800.0
-# water_length = 2500.0
+# water_length = 12800.0
+water_length = 2500.0
 
-air_length = 12800.0
-# air_length = 2500.0
+# air_length = 12800.0
+air_length = 2500.0
 
-side_extension = 12800.0
-# side_extension = 2500.0
+# side_extension = 12800.0
+side_extension = 2500.0
 
-pml_thickness = 12800.0
-# pml_thickness = 2500.0
+# pml_thickness = 12800.0
+pml_thickness = 500.0
 
 # ============
 # Calculations

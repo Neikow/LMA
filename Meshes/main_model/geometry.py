@@ -44,17 +44,29 @@ from Meshes.main_model.sizing import (
 #  |    --------    |
 #  |----------------|
 
-before_dam_elements = [4, 4, 8, 8, 16]
-# before_dam_elements = [1]
+precision_map = {
+    'high': [8, 16, 24],
+    'medium': [16, 24],
+    'low': [8, 16],
+    'extra-low': [4, 8]
+}
+
+
+precision = 'medium'
+
+before_dam_elements = precision_map[precision]
+after_dam_elements = [x for x in reversed(precision_map[precision])]
+extension_elements = [x for x in reversed(precision_map[precision])]
 around_dam_elements = [1]
-# around_dam_elements = [1]
-after_dam_elements = [16, 8, 8, 4, 4]
-# after_dam_elements = [1]
-extension_elements = [16, 8, 8, 4, 4]
-# extension_elements = [1]
 pml_elements = [1]
 
-options["transfinite"] = 16
+
+options["transfinite"] = {
+    'high': 16,
+    'medium': 8,
+    'low': 8,
+    'extra-low': 4
+}[precision]
 
 # Ground points
 pg1 = Point(x_zero, y_zero, z_zero)
