@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd">
+<Xdmf Version="2.0" xmlns:xi="http://www.w3.org/2001/XInclude">
+<Domain>
+<Grid CollectionType="Spatial" GridType="Collection">
+<xi:include href="mesh.0000.xmf" xpointer="xpointer(//Xdmf/Domain/Grid)"/>
+</Grid>
+</Domain>
+</Xdmf>

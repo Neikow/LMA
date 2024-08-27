@@ -3,7 +3,7 @@ clear all
 clc
 
 % load the files...
-folder = 'C:\Users\Vitaly\OneDrive\Bureau\LMA\results\simulated_dam_flat\traces';
+folder = 'C:\Users\Vitaly\OneDrive\Bureau\LMA\results\21_08_dam_no_topo_big_domain\traces';
 matname = 'EE';
 
 

@@ -1,6 +1,6 @@
 from math import sqrt
 
-from Meshes.gmesher import Material
+from gmesher import Material
 
 # =========================
 #  Dam concrete properties

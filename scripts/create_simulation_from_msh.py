@@ -105,6 +105,8 @@ def get_selection(src_dir: str):
         return ''
 
 
+SOURCE = (8000, 8000, 8000)
+
 def get_input_spec(
     job_name: str,
     sim_time: float,
@@ -142,7 +144,7 @@ restart_iter=298000;
 # sources
 {get_sources_from_ricker(source) if use_ricker else get_sources_from_seismic_data(
     ["usds_th.csv", "ud_th.csv", "cross_str.csv"],
-    [(300, 300, 300), (300, 300, 300), (300, 300, 300)],
+    [SOURCE, SOURCE, SOURCE],
     [(0, 0, 1), (0, 1, 0), (1, 0, 0)],
 )}
 
@@ -295,8 +297,8 @@ def main():
         "-T",
         dest="sim_time",
         type=int,
-        help="Simulation duration (in s) (default=5)",
-        default=5,
+        help="Simulation duration (in s) (default=20)",
+        default=20,
     )
     parser.add_argument(
         "-t",

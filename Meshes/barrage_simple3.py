@@ -1,4 +1,4 @@
-import gmesher as m
+import Meshes.main_model.gmesher as m
 import sys
 
 # ===========
@@ -30,12 +30,12 @@ geo = m.geo
 model = m.model
 
 # bottom center
-bc_g_points = m.get_points_from_size(dam_size * scale, ground_height * scale, wall_thickness * scale)
+bc_g_points = m.get_rectangle_from_size(dam_size * scale, ground_height * scale, wall_thickness * scale)
 bg_g_curve = m.get_curve_from_points(bc_g_points)
 
 # transfinite curves
 for i in m.get_lines_from_points(bc_g_points):
-    geo.mesh.set_transfinite_curve(i, 30)
+    geo.mesh.set_transfinite_curve(i, 8)
 
 bg_g_plane = geo.add_plane_surface([bg_g_curve])
 # transfinite surfaces
@@ -64,11 +64,11 @@ l_bw_ground_volume = geo.extrude([bl_ground_volume[5]],
                                  [water_depth * elements],
                                  recombine=True)
 
-print('bc_ground_volume', m.get_volumes(bc_ground_volume, 1))
-print('br_ground_volume', m.get_volumes(br_ground_volume, 1))
-print('bl_ground_volume', m.get_volumes(bl_ground_volume, 1))
-print('r_bw_ground_volume', m.get_volumes(r_bw_ground_volume, 1))
-print('l_bw_ground_volume', m.get_volumes(l_bw_ground_volume, 1))
+# print('bc_ground_volume', m.get_volumes(bc_ground_volume, 1))
+# print('br_ground_volume', m.get_volumes(br_ground_volume, 1))
+# print('bl_ground_volume', m.get_volumes(bl_ground_volume, 1))
+# print('r_bw_ground_volume', m.get_volumes(r_bw_ground_volume, 1))
+# print('l_bw_ground_volume', m.get_volumes(l_bw_ground_volume, 1))
 
 around_dam_extrusion = [r_bw_ground_volume[3],
                         l_bw_ground_volume[5],
@@ -82,7 +82,7 @@ ground_around_dam_volume = geo.extrude(
     [dam_thickness * elements],
     recombine=True)
 
-print('ground_around_dam_volume', m.get_volumes(ground_around_dam_volume, len(around_dam_extrusion)))
+# print('ground_around_dam_volume', m.get_volumes(ground_around_dam_volume, len(around_dam_extrusion)))
 
 ground_after_dam_volume = geo.extrude(
     m.get_faces_in_extrusion_direction(ground_around_dam_volume, len(around_dam_extrusion)),
@@ -90,7 +90,7 @@ ground_after_dam_volume = geo.extrude(
     [air_length * elements],
     recombine=True)
 
-print('ground_after_dam_volume', m.get_volumes(ground_after_dam_volume, len(around_dam_extrusion)))
+# print('ground_after_dam_volume', m.get_volumes(ground_after_dam_volume, len(around_dam_extrusion)))
 
 above_water_below_dam_extrusion = [
     ground_after_dam_volume[10],
@@ -107,8 +107,8 @@ ground_above_water_below_dam_volume = geo.extrude(
     [(dam_height - water_depth) * elements],
     recombine=True)
 
-print('ground_above_water_below_dam_volume', m.get_volumes(ground_above_water_below_dam_volume,
-                                                           len(above_water_below_dam_extrusion)))
+# print('ground_above_water_below_dam_volume', m.get_volumes(ground_above_water_below_dam_volume,
+#                                                            len(above_water_below_dam_extrusion)))
 
 ground_above_water_above_dam_volume = geo.extrude(
     m.get_faces_in_extrusion_direction(ground_above_water_below_dam_volume, len(above_water_below_dam_extrusion) - 1),
@@ -116,8 +116,8 @@ ground_above_water_above_dam_volume = geo.extrude(
     [(wall_height - dam_height) * elements],
     recombine=True)
 
-print('ground_above_water_above_dam_volume', m.get_volumes(ground_above_water_above_dam_volume,
-                                                           len(above_water_below_dam_extrusion)))
+# print('ground_above_water_above_dam_volume', m.get_volumes(ground_above_water_above_dam_volume,
+#                                                            len(above_water_below_dam_extrusion)))
 
 dam_bw_extrusion = [ground_around_dam_volume[16]]
 
@@ -154,7 +154,6 @@ ground_volumes = [bc_ground_volume[1],
                   *m.get_volumes(ground_around_dam_volume, len(around_dam_extrusion) + 1),
                   *m.get_volumes(ground_after_dam_volume, len(around_dam_extrusion) + 1),
                   *m.get_volumes(ground_above_water_below_dam_volume, len(above_water_below_dam_extrusion)),
-                  # *get_volumes(ground_above_water_above_dam_volume, len(above_water_below_dam_extrusion)),
                   ]
 
 m.add_volumes_to_phy_group(ground_volumes, 'Ground')

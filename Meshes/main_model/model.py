@@ -4,9 +4,9 @@ from typing import List
 
 import numpy as np
 
-from Meshes.gmesher import gmsh, geo
-from Meshes.main_model.geometry import collection
-from Meshes.main_model.sizing import (
+from gmesher import gmsh, geo
+from geometry import collection
+from sizing import (
     wall_thickness_top,
     ground_height,
     dam_size_top,
@@ -16,9 +16,9 @@ from Meshes.main_model.sizing import (
     side_extension,
     wall_height, air_length,
 )
-from Meshes.msh_transformer.instance import MSHInstance
-from Meshes.msh_transformer.transformer import Transformer, BoundingBox
-from Meshes.tsankov_kamak_dam import forward_deformation, backward_deformation
+from instance import MSHInstance
+from transformer import Transformer, BoundingBox
+from tsankov_kamak_dam import forward_deformation, backward_deformation
 
 gmsh.option.setNumber("General.Verbosity", 0)
 
@@ -40,9 +40,9 @@ h_min = +np.infty
 
 threshold = 0.1
 
-x_offset = 100
-y_offset = 200
-z_offset = 300
+x_offset = dam_size_top / 3
+y_offset = 2 * dam_height
+z_offset = (water_length + air_length) / 2 / 100
 
 bounding_box_front = BoundingBox(
     wall_thickness_top + side_extension - x_offset,
@@ -66,7 +66,7 @@ bounding_box_back = BoundingBox(
 
 geo.synchronize()
 
-source = (300., 300., 300.)
+source = (8000., 8000., 8000.)
 
 points = [source]
 
@@ -120,9 +120,7 @@ def transform_back(x: float, y: float, z: float, mats: List[int], on_faces: List
         z - bounding_box_back.min_z,
     )
 
-    qz = (bounding_box_back.min_z - z) / (bounding_box_back.max_z - bounding_box_back.min_x)
-
-    print(qz)
+    qz = z0 / (bounding_box_back.max_z - bounding_box_back.min_z)
 
     dz += (
         (
@@ -143,6 +141,9 @@ def transform_back(x: float, y: float, z: float, mats: List[int], on_faces: List
     return x + dx, y + dy, z + dz, False
 
 
+topography_threshold = ground_height / 3
+
+
 def apply_topography(x: float, y: float, z: float, mats: List[int], on_faces: List[str]):
     x0, y0, z0 = (
         x - (side_extension + wall_thickness_top + dam_size_top / 2),
@@ -153,10 +154,27 @@ def apply_topography(x: float, y: float, z: float, mats: List[int], on_faces: Li
     c = 1
 
     u0 = np.array([-x0 / 1000, z0 / 1000])
-    mu = max(0, y0 / (ground_height + wall_height))
+
+    # mu = 1
+    mu = max(0, min(1, y0 / (ground_height + wall_height - topography_threshold)))
+
+    # deformation = 0
+    # center_coefficient = 4
+    # average_around = 20
+    #
+    # for j in range(-1, 2):
+    #     for k in range(-1, 2):
+    #         dd = height_deformation(u0[0] + j * average_around / 1000, u0[1] + k * average_around / 1000)
+    #         if j == k == 0:
+    #             deformation += dd * center_coefficient
+    #         else:
+    #             deformation += dd
+    #
+    # deformation /= (8 + center_coefficient)
+
     deformation = height_deformation(*u0)
 
-    dy = deformation * c * mu * 0
+    dy = deformation * c * mu
 
     if 2 in mats:
         points.append((x, y + dy, z))
@@ -167,13 +185,13 @@ def apply_topography(x: float, y: float, z: float, mats: List[int], on_faces: Li
 x_extent = side_extension + wall_thickness_top + dam_size_top + wall_thickness_top + side_extension
 z_extent = water_length + dam_thickness + air_length
 
-use_topo = True
+use_topo = False
 
-z_extent_offset = 4000
-x_extent_offset = 4000
+z_extent_offset = (air_length + water_length) / 2 / 3
+x_extent_offset = (side_extension + wall_thickness_top) / 3
 
 if use_topo:
-    from Meshes.main_model.topography.read_hgt import get_interpolator
+    from read_hgt import get_interpolator
     height_deformation, topo_h_min, topo_h_max = get_interpolator(
         (z_extent - z_extent_offset) / 1000,
         (x_extent - x_extent_offset) / 1000,
@@ -192,7 +210,7 @@ def create_stations(x: float, y: float, z: float, mats: List[int], on_faces: Lis
 print("# Applying transforms...")
 MSHInstance("output.msh").apply_transform(
     [
-        Transformer.material_filter(-3),
+        # Transformer.material_filter(-3),
         Transformer(
             bounding_box_back,
             transform_back,
@@ -231,23 +249,34 @@ with open('stations.txt', 'w') as f:
 
 offset = 1
 
+box_threshold = 100
+
 boxes = [
     # top
-    (0, ground_height + topo_h_min, 0,
-     x_extent, ground_height + topo_h_max, z_extent),
+    (
+        -box_threshold, 0 - box_threshold, -box_threshold,
+        x_extent + box_threshold, ground_height + topo_h_max + box_threshold, z_extent + box_threshold
+    ),
     # x+
-    (x_extent, 0, 0,
-     0, ground_height + topo_h_max, z_extent),
+    (
+        x_extent - box_threshold, -box_threshold, -box_threshold,
+        -box_threshold, ground_height + topo_h_max + box_threshold, z_extent + box_threshold
+    ),
     # x-
-    (0, 0, 0,
-     0, ground_height + topo_h_max, z_extent),
+    (
+        -box_threshold, -box_threshold, -box_threshold,
+        box_threshold, ground_height + topo_h_max + box_threshold, z_extent + box_threshold + box_threshold
+    ),
     # z+
-    (0, 0, z_extent,
-     x_extent, ground_height + topo_h_max, 0),
+    (
+        -box_threshold, -box_threshold, z_extent - box_threshold,
+        x_extent + box_threshold, ground_height + topo_h_max + box_threshold, box_threshold
+    ),
     # z-
-    (0, 0, 0,
-     x_extent, ground_height + topo_h_max, 0
-     ),
+    (
+        -box_threshold, -box_threshold, -box_threshold,
+        x_extent + box_threshold, ground_height + topo_h_max + box_threshold, +box_threshold
+    ),
 ]
 
 with open('selection.txt', 'w') as f:

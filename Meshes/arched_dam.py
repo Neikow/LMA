@@ -1,7 +1,7 @@
 from math import tan, atan, degrees, cos, sin
 from typing import List
 
-import gmesher as m
+import Meshes.main_model.gmesher as m
 
 tr = 5
 

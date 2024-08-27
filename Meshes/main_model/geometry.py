@@ -2,7 +2,7 @@
 # Points
 # ==========
 from math import tan
-from Meshes.gmesher import (
+from gmesher import (
     VolumeGroup,
     PML,
     Point,
@@ -13,8 +13,8 @@ from Meshes.gmesher import (
     PhysicalGroupCollection,
     options,
 )
-from Meshes.main_model.materials import material_dam, material_ground, material_water
-from Meshes.main_model.sizing import (
+from materials import material_dam, material_ground, material_water
+from sizing import (
     pml_thickness,
     x_upper,
     z_upper,
@@ -44,29 +44,32 @@ from Meshes.main_model.sizing import (
 #  |    --------    |
 #  |----------------|
 
+
+precision = 'extra-low'
+transfinite = 'extra-low'
+
+
 precision_map = {
+    'extra-high': [8, 16, 24, 32],
     'high': [8, 16, 24],
     'medium': [16, 24],
     'low': [8, 16],
-    'extra-low': [4, 8]
+    'extra-low': [4, 8],
 }
 
-
-precision = 'medium'
-
-before_dam_elements = precision_map[precision]
-after_dam_elements = [x for x in reversed(precision_map[precision])]
-extension_elements = [x for x in reversed(precision_map[precision])]
-around_dam_elements = [1]
-pml_elements = [1]
-
-
 options["transfinite"] = {
+    'extra-high': 32,
     'high': 16,
     'medium': 8,
     'low': 8,
     'extra-low': 4
-}[precision]
+}[transfinite]
+
+before_dam_elements = [1, *precision_map[precision]]
+after_dam_elements = [*[x for x in reversed(precision_map[precision])], 1]
+extension_elements = [*[x for x in reversed(precision_map[precision])], 1]
+around_dam_elements = [1]
+pml_elements = [1]
 
 # Ground points
 pg1 = Point(x_zero, y_zero, z_zero)
