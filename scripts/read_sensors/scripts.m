@@ -21,7 +21,7 @@ transformed(3,:) = tukeywin(size(capteur(icap).Time, 2), 0.5)' .* capteur(icap).
 %% plot capteurs dans l'espace
 for i = 1 : Ncap
     pos(i,:) = capteur(i).Pos;
-    
+
     if i == icap
         s(i) = 50;
     else
@@ -115,7 +115,7 @@ for i = 1 : numel(indexes)
     [pktx,lctx] = findpeaks(abs(sqx),w);
     [pkty,lcty] = findpeaks(abs(sqy),w);
     [pktz,lctz] = findpeaks(abs(sqz),w);
-    
+
     scatter(lctx, pktx, 'or');
     scatter(lcty, pkty, 'og');
     scatter(lctz, pktz, 'ob');

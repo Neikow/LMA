@@ -154,6 +154,7 @@ ground_volumes = [bc_ground_volume[1],
                   *m.get_volumes(ground_around_dam_volume, len(around_dam_extrusion) + 1),
                   *m.get_volumes(ground_after_dam_volume, len(around_dam_extrusion) + 1),
                   *m.get_volumes(ground_above_water_below_dam_volume, len(above_water_below_dam_extrusion)),
+                  # *get_volumes(ground_above_water_above_dam_volume, len(above_water_below_dam_extrusion)),
                   ]
 
 m.add_volumes_to_phy_group(ground_volumes, 'Ground')
