@@ -185,7 +185,7 @@ def apply_topography(x: float, y: float, z: float, mats: List[int], on_faces: Li
 x_extent = side_extension + wall_thickness_top + dam_size_top + wall_thickness_top + side_extension
 z_extent = water_length + dam_thickness + air_length
 
-use_topo = False
+use_topo = True
 
 z_extent_offset = (air_length + water_length) / 2 / 3
 x_extent_offset = (side_extension + wall_thickness_top) / 3

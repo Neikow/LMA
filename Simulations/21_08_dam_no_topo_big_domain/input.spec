@@ -2,7 +2,7 @@
 run_name = "21_08_dam_no_topo_big_domain";
 
 # duration of the run
-sim_time = 20.0000;
+sim_time = 1.0000;
 mesh_file = "mesh4spec"; # input mesh file
 mat_file = "material.input";
 dim=3;
@@ -13,11 +13,11 @@ snapshots {
     snap_interval = 0.05;
     
     deselect all;
-select box = -101.0 6219.0 -101.0 27901.0 19381.0 25611.0;
-select box = 27799.0 -101.0 -101.0 -99.0 13081.0 25711.0;
-select box = -101.0 -101.0 -101.0 101.0 13081.0 25811.0;
-select box = -101.0 -101.0 25509.0 28001.0 13081.0 101.0;
-select box = -101.0 -101.0 -101.0 28001.0 13081.0 101.0;
+select box = -101.0 -101.0 -101.0 28001.0 14156.5 25711.0;
+select box = 27799.0 -101.0 -101.0 -99.0 14156.5 25711.0;
+select box = -101.0 -101.0 -101.0 101.0 14156.5 25811.0;
+select box = -101.0 -101.0 25509.0 28001.0 14156.5 101.0;
+select box = -101.0 -101.0 -101.0 28001.0 14156.5 101.0;
 
 };
 

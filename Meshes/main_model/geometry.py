@@ -54,7 +54,7 @@ precision_map = {
     'high': [8, 16, 24],
     'medium': [16, 24],
     'low': [8, 16],
-    'extra-low': [4, 8],
+    'extra-low': [2, 4],
 }
 
 options["transfinite"] = {

@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -J 21_08_dam_no_topo_big_domain_SEMRun
 #SBATCH -p skylake
-#SBATCH -n 32
+#SBATCH -n 1
 #SBATCH -N 1
 #SBATCH -A b401
 #SBATCH -t 48:00:00
@@ -9,7 +9,7 @@
 #SBATCH -e ./%N.%x.err
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=lysen@lma.cnrs-mrs.fr
-#SBATCH --exclusive
+
 
 # chargement des modules
 module purge
