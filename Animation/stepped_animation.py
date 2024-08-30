@@ -1,3 +1,5 @@
+import os
+
 from paraview.simple import *
 
 paraview.simple._DisableFirstRenderCameraReset()
@@ -6,13 +8,14 @@ ORIGIN = [13950.0, 12336.0, 12805.0]
 DAM_POS = [13950.0, 12493.8, 12740.5]
 
 
-NUM_FRAMES = 200
+NUM_FRAMES = 400
+START_FRAME = 0
 
-END_TIME = 7.15
+END_TIME = 10
 ZOOM_IN_OUT_TIME = 0.0
-ROTATE_AROUND_QUAKE_TIME = 3.0
-SHOW_DAM_FROM_TIME = 3.5
-REST_FRAME_TIME = 4
+ROTATE_AROUND_QUAKE_TIME = 3.5
+SHOW_DAM_FROM_TIME = 5.5
+REST_FRAME_TIME = 6.5
 
 # create a new 'Xdmf3ReaderS'
 resultsxmf = Xdmf3ReaderS(FileName=['C:\\Users\\Vitaly\\OneDrive\\Bureau\\LMA\\results\\fast\\sem\\res\\results.xmf'])
@@ -439,7 +442,12 @@ animationScene1 = GetAnimationScene()
 
 animationScene1.PlayMode = 'Sequence'
 
+START_TIME = animationScene1.TimeKeeper.TimestepValues[START_FRAME - 1]
+
+animationScene1.StartTime = 0
 animationScene1.EndTime = END_TIME
+
+animationScene1.AnimationTime = START_TIME
 
 # Properties modified on animationScene1
 animationScene1.NumberOfFrames = NUM_FRAMES
@@ -959,13 +967,13 @@ keeprelevantgeometryDisplay.SetScalarBarVisibility(renderView1, True)
 velocLUT = GetColorTransferFunction('Veloc')
 
 # Rescale transfer function
-velocLUT.RescaleTransferFunction(0.0, 7e-14)
+velocLUT.RescaleTransferFunction(0.0, 1.1e-11)
 
 # get opacity transfer function/opacity map for 'Veloc'
 velocPWF = GetOpacityTransferFunction('Veloc')
 
 # Rescale transfer function
-velocPWF.RescaleTransferFunction(0.0, 7e-14)
+velocPWF.RescaleTransferFunction(0.0, 1.1e-11)
 
 # find source
 clip2 = FindSource('Clip2')
@@ -999,7 +1007,7 @@ selectGround = FindSource('Select Ground')
 cameraAnimationCue1 = GetCameraTrack(view=renderView1)
 #
 
-initial_camera_position = [12199.59440274444, 24270.39659406914, 6252.1979170378845]
+initial_camera_position = [6788.624526340756, 24718.080592007853, 8154.191360996321]
 initial_view_up = [0, 1.0, -0.3125254645]
 
 zoom_in_out = CameraKeyFrame()
@@ -1011,8 +1019,8 @@ zoom_in_out.ParallelScale = 14000
 zoom_in_out.PositionPathPoints = initial_camera_position + [
     14324.273567838145, 33710.5614169787, -16332.20013395932,
     DAM_POS[0], 28317.681231820807, -23208.310776871505,
-    13806.828237099908, 25086.28959708633, -13073.3616343532,
-    DAM_POS[0], 15882.3444304484, 11845.324290816909,
+    21476.62135487907, 20143.811410442842, -7578.411346496787,
+    13881.521757926792, 16007.187502701168, 11331.889674466951,
 ]
 zoom_in_out.FocalPathPoints = DAM_POS
 zoom_in_out.ClosedPositionPath = 1
@@ -1094,8 +1102,10 @@ renderView1.CameraParallelScale = 19000.28458824738
 if __name__ == '__main__':
     GetActiveView().ViewSize = [1920, 1080]
     animationScene1.GoToFirst()
-    path = '.'
-    for x in range(NUM_FRAMES):
+    path = './stepped'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+    for x in range(START_FRAME, NUM_FRAMES):
         print(x, END_TIME * x / NUM_FRAMES)
         filename = path + '/stepped_animation_' + str(x).rjust(4, '0') + '.png'
         SaveScreenshot(filename, magnification=1, quality=100, view=renderView1)

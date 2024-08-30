@@ -2,7 +2,7 @@
 run_name = "fast";
 
 # duration of the run
-sim_time = 1.0000;
+sim_time = 20.0000;
 mesh_file = "mesh4spec"; # input mesh file
 mat_file = "material.input";
 dim=3;

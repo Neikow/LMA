@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH -J fast_SEMRun
 #SBATCH -p skylake
-#SBATCH -n 1
+#SBATCH -n 2
 #SBATCH -N 1
 #SBATCH -A b401
 #SBATCH -t 48:00:00
